@@ -7185,9 +7185,7 @@
     </key>
     <value>
       <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-        <ItemLocation xsi:type="WorldDrop">
-          <Heroic>false</Heroic>
-        </ItemLocation>
+        <ItemLocation xsi:type="UnknownItem" />
         <ItemLocation xsi:nil="true" />
       </ArrayOfItemLocation>
     </value>
@@ -120307,6 +120305,61 @@
   <item>
     <key>
       <string>88800</string>
+    </key>
+    <value>
+      <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <ItemLocation xsi:type="UnknownItem" />
+        <ItemLocation xsi:nil="true" />
+      </ArrayOfItemLocation>
+    </value>
+  </item>
+  <item>
+    <key>
+      <string>3293</string>
+    </key>
+    <value>
+      <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <ItemLocation xsi:type="UnknownItem" />
+        <ItemLocation xsi:nil="true" />
+      </ArrayOfItemLocation>
+    </value>
+  </item>
+  <item>
+    <key>
+      <string>1251</string>
+    </key>
+    <value>
+      <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <ItemLocation xsi:type="UnknownItem" />
+        <ItemLocation xsi:nil="true" />
+      </ArrayOfItemLocation>
+    </value>
+  </item>
+  <item>
+    <key>
+      <string>10498</string>
+    </key>
+    <value>
+      <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <ItemLocation xsi:type="UnknownItem" />
+        <ItemLocation xsi:nil="true" />
+      </ArrayOfItemLocation>
+    </value>
+  </item>
+  <item>
+    <key>
+      <string>2901</string>
+    </key>
+    <value>
+      <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <ItemLocation xsi:type="UnknownItem" />
+        <ItemLocation xsi:nil="true" />
+      </ArrayOfItemLocation>
+    </value>
+  </item>
+  <item>
+    <key>
+      <string>6219</string>
     </key>
     <value>
       <ArrayOfItemLocation xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
