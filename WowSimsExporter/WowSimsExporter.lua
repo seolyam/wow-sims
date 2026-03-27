@@ -132,13 +132,25 @@ function WowSimsExporter:CreateTalentEntry()
     return table.concat(talents)
 end
 
+function WowSimsExporter:GetTalentTreePoints(tabIndex)
+	local points = 0
+	local numTalents = GetNumTalents(tabIndex) or 0
+
+	for i = 1, numTalents do
+		local _, _, _, _, currRank = GetTalentInfo(tabIndex, i)
+		points = points + (tonumber(currRank) or 0)
+	end
+
+	return points
+end
+
 function WowSimsExporter:CheckCharacterSpec(class)
 
 	local specs = self.specializations
 
-	T1 = GetNumTalents(1)
-	T2 = GetNumTalents(2)
-	T3 = GetNumTalents(3)
+	local T1 = self:GetTalentTreePoints(1)
+	local T2 = self:GetTalentTreePoints(2)
+	local T3 = self:GetTalentTreePoints(3)
 
 	local spec = ""
 
@@ -304,6 +316,81 @@ function WowSimsExporter:GetRawrProfessionName(name)
 	return profMap[name] or "None"
 end
 
+function WowSimsExporter:GetRawrModelAndCalculation(class, spec)
+	local model = "DPS"
+	local calculation = "Overall Points"
+
+	if class == "deathknight" then
+		if spec == "blood" then
+			model = "TankDK"
+			calculation = "Survival"
+		else
+			model = "DPSDK"
+			calculation = "DPS"
+		end
+	elseif class == "druid" then
+		if spec == "balance" then
+			model = "Moonkin"
+			calculation = "DPS"
+		elseif spec == "feral" then
+			model = "Cat"
+			calculation = "DPS"
+		end
+	elseif class == "hunter" then
+		model = "Hunter"
+		calculation = "DPS"
+	elseif class == "mage" then
+		model = "Mage"
+		calculation = "DPS"
+	elseif class == "paladin" then
+		if spec == "protection" then
+			model = "ProtPaladin"
+			calculation = "Survival"
+		elseif spec == "retribution" then
+			model = "Retribution"
+			calculation = "DPS"
+		else
+			model = "Healadin"
+			calculation = "HPS"
+		end
+	elseif class == "priest" then
+		if spec == "shadow" then
+			model = "ShadowPriest"
+			calculation = "DPS"
+		else
+			model = "HolyPriest"
+			calculation = "HPS"
+		end
+	elseif class == "rogue" then
+		model = "Rogue"
+		calculation = "DPS"
+	elseif class == "shaman" then
+		if spec == "enhancement" then
+			model = "Enhance"
+			calculation = "DPS"
+		elseif spec == "elemental" then
+			model = "Elemental"
+			calculation = "DPS"
+		else
+			model = "RestoSham"
+			calculation = "HPS"
+		end
+	elseif class == "warlock" then
+		model = "Warlock"
+		calculation = "DPS"
+	elseif class == "warrior" then
+		if spec == "protection" then
+			model = "ProtWarr"
+			calculation = "Survival"
+		else
+			model = "DPSWarr"
+			calculation = "DPS"
+		end
+	end
+
+	return model, calculation
+end
+
 function WowSimsExporter:GetRawrPrimarySecondaryProfessions()
 	local profs = {}
 	for _, prof in ipairs(self.Character.professions or {}) do
@@ -370,33 +457,81 @@ function WowSimsExporter:GetCurrentOrderedTalentRanks()
 	return ranks
 end
 
-function WowSimsExporter:BuildRawrTalentString(template)
-	local ranks = self:GetCurrentOrderedTalentRanks()
-	local rankIndex = 1
-	local chars = {}
+function WowSimsExporter:GetActiveGlyphSpellIds()
+	local glyphIds = {}
 
-	for i = 1, string.len(template) do
-		local ch = string.sub(template, i, i)
-		if ch >= "0" and ch <= "9" then
-			local rank = ranks[rankIndex]
-			if rank ~= nil then
-				chars[#chars + 1] = tostring(rank)
-				rankIndex = rankIndex + 1
-			else
-				chars[#chars + 1] = ch
-			end
+	for socketId = 1, 6 do
+		local enabled, _, _, glyphSpellID = GetGlyphSocketInfo(socketId)
+		local glyphSpellNumeric = tonumber(glyphSpellID)
+		if enabled and glyphSpellNumeric and glyphSpellNumeric > 0 then
+			glyphIds[socketId] = glyphSpellNumeric
 		else
-			chars[#chars + 1] = ch
+			glyphIds[socketId] = 0
 		end
 	end
 
-	return table.concat(chars)
+	return glyphIds
 end
 
-function WowSimsExporter:BuildRawrItemInstanceString(itemLink)
-	local id, enchant, gem1, gem2, gem3, gem4 = self:ParseItemLink(itemLink)
+function WowSimsExporter:BuildRawrGlyphDataString(targetLength)
+	targetLength = tonumber(targetLength) or 0
+	if targetLength <= 0 then
+		return ""
+	end
 
+	local glyphIds = self:GetActiveGlyphSpellIds()
+	local parts = {}
+
+	for socketId = 1, 6 do
+		parts[#parts + 1] = string.format("%05d", tonumber(glyphIds[socketId]) or 0)
+	end
+
+	local glyphData = table.concat(parts)
+
+	if string.len(glyphData) < targetLength then
+		glyphData = glyphData .. string.rep("0", targetLength - string.len(glyphData))
+	elseif string.len(glyphData) > targetLength then
+		glyphData = string.sub(glyphData, 1, targetLength)
+	end
+
+	return glyphData
+end
+
+function WowSimsExporter:BuildRawrTalentString(template, requiredDigitsBeforeSeparator)
+	local ranks = self:GetCurrentOrderedTalentRanks()
+	local prefixTemplate, suffixTemplate = string.match(template or "", "^(%d+)%.(%d+)$")
+
+	if not prefixTemplate then
+		prefixTemplate = tostring(template or "")
+		suffixTemplate = ""
+	end
+
+	local targetPrefixLength = tonumber(requiredDigitsBeforeSeparator) or string.len(prefixTemplate)
+	local prefixParts = {}
+
+	for i = 1, targetPrefixLength do
+		local rank = ranks[i]
+		if rank ~= nil then
+			prefixParts[i] = tostring(rank)
+		else
+			local templateDigit = string.sub(prefixTemplate, i, i)
+			if templateDigit ~= "" and templateDigit >= "0" and templateDigit <= "9" then
+				prefixParts[i] = templateDigit
+			else
+				prefixParts[i] = "0"
+			end
+		end
+	end
+
+	local prefix = table.concat(prefixParts)
+	local suffix = self:BuildRawrGlyphDataString(string.len(suffixTemplate or ""))
+
+	return prefix .. "." .. suffix
+end
+
+function WowSimsExporter:GetResolvedGemItemIds(itemLink, gem1, gem2, gem3, gem4)
 	local gems = {}
+
 	for gemIndex = 1, 4 do
 		local _, gemLink = GetItemGem(itemLink, gemIndex)
 		if gemLink then
@@ -416,6 +551,13 @@ function WowSimsExporter:BuildRawrItemInstanceString(itemLink)
 		end
 	end
 
+	return gems
+end
+
+function WowSimsExporter:BuildRawrItemInstanceString(itemLink)
+	local id, enchant, gem1, gem2, gem3, gem4 = self:ParseItemLink(itemLink)
+	local gems = self:GetResolvedGemItemIds(itemLink, gem1, gem2, gem3, gem4)
+
 	local g1 = gems[1] or 0
 	local g2 = gems[2] or 0
 	local g3 = gems[3] or 0
@@ -425,6 +567,90 @@ function WowSimsExporter:BuildRawrItemInstanceString(itemLink)
 
 	-- Rawr ItemInstance parser expects: itemId.gem1.gem2.gem3.enchantId
 	return string.format("%d.%d.%d.%d.%d", itemId, g1, g2, g3, enchantId)
+end
+
+function WowSimsExporter:BuildRawrAvailableItemString(itemLink)
+	local _, _, itemId, enchantId, gem1Id, gem2Id, gem3Id = string.find(itemLink, "item:(%-?%d+):(%-?%d*):(%-?%d*):(%-?%d*):(%-?%d*)")
+	if not itemId then
+		return nil
+	end
+
+	local gems = self:GetResolvedGemItemIds(itemLink, gem1Id, gem2Id, gem3Id, 0)
+
+	local g1 = gems[1] or 0
+	local g2 = gems[2] or 0
+	local g3 = gems[3] or 0
+
+	local id = tonumber(itemId) or 0
+	local enchant = tonumber(enchantId) or 0
+
+	return string.format("%d.%d.%d.%d.%d", id, g1, g2, g3, enchant)
+end
+
+function WowSimsExporter:BuildRawrAvailableBaseItemString(itemLink)
+	local _, _, itemId = string.find(itemLink, "item:(%-?%d+):")
+	if not itemId then
+		return nil
+	end
+
+	return tostring(tonumber(itemId) or 0)
+end
+
+function WowSimsExporter:IsRawrEquippableItem(itemLink)
+	if not itemLink then
+		return false
+	end
+
+	local equipLocation = select(9, GetItemInfo(itemLink))
+	if equipLocation and equipLocation ~= "" then
+		return true
+	end
+
+	return false
+end
+
+function WowSimsExporter:GetAvailableItemsXML()
+	local uniqueItems = {}
+	local lines = {}
+
+	local function addAvailableItem(itemLink)
+		if not self:IsRawrEquippableItem(itemLink) then
+			return
+		end
+
+		local fullItemString = self:BuildRawrAvailableItemString(itemLink)
+		if fullItemString and not uniqueItems[fullItemString] then
+			uniqueItems[fullItemString] = true
+		end
+
+		local baseItemString = self:BuildRawrAvailableBaseItemString(itemLink)
+		if baseItemString and not uniqueItems[baseItemString] then
+			uniqueItems[baseItemString] = true
+		end
+	end
+
+	for slotId = 1, 19 do
+		local itemLink = GetInventoryItemLink("player", slotId)
+		if itemLink then
+			addAvailableItem(itemLink)
+		end
+	end
+
+	local orderedItems = {}
+	for itemString in pairs(uniqueItems) do
+		table.insert(orderedItems, itemString)
+	end
+	table.sort(orderedItems)
+
+	for _, itemString in ipairs(orderedItems) do
+		table.insert(lines, "  <AvailableItems>" .. itemString .. "</AvailableItems>")
+	end
+
+	return lines
+end
+
+function WowSimsExporter:GetRawrAvailableItemsXmlLines()
+	return self:GetAvailableItemsXML()
 end
 
 function WowSimsExporter:GetRawrSlotItems()
@@ -488,6 +714,7 @@ function WowSimsExporter:BuildRawrCharacterXml()
 	local raceName = self:GetRawrRaceName(char.race)
 	local regionName = self:GetRawrRegionName()
 	local primaryProfession, secondaryProfession = self:GetRawrPrimarySecondaryProfessions()
+	local rawrModel, rawrCalculation = self:GetRawrModelAndCalculation(char.class, char.spec)
 	local slotItems = self:GetRawrSlotItems()
 	local talentStrings = self:GetRawrDefaultTalentStrings()
 
@@ -506,7 +733,11 @@ function WowSimsExporter:BuildRawrCharacterXml()
 
 	local talentTag = classTalentTagMap[char.class]
 	if talentTag and talentStrings[talentTag] then
-		talentStrings[talentTag] = self:BuildRawrTalentString(talentStrings[talentTag])
+		if char.class == "deathknight" then
+			talentStrings[talentTag] = self:BuildRawrTalentString(talentStrings[talentTag], 88)
+		else
+			talentStrings[talentTag] = self:BuildRawrTalentString(talentStrings[talentTag])
+		end
 	end
 
 	local lines = {
@@ -517,6 +748,9 @@ function WowSimsExporter:BuildRawrCharacterXml()
 		'  <Region>' .. regionName .. '</Region>',
 		'  <Race>' .. raceName .. '</Race>',
 		'  <Class>' .. className .. '</Class>',
+		'  <CurrentModel>' .. self:XmlEscape(rawrModel) .. '</CurrentModel>',
+		'  <Model>' .. self:XmlEscape(rawrModel) .. '</Model>',
+		'  <CalculationToOptimize>' .. self:XmlEscape(rawrCalculation) .. '</CalculationToOptimize>',
 		'  <EnforceMetagemRequirements>false</EnforceMetagemRequirements>',
 	}
 
@@ -596,6 +830,12 @@ function WowSimsExporter:BuildRawrCharacterXml()
 	table.insert(lines, '  <CustomItemInstances />')
 	table.insert(lines, '  <PrimaryProfession>' .. primaryProfession .. '</PrimaryProfession>')
 	table.insert(lines, '  <SecondaryProfession>' .. secondaryProfession .. '</SecondaryProfession>')
+
+	local availableItemsLines = self:GetRawrAvailableItemsXmlLines()
+	for _, availableItemLine in ipairs(availableItemsLines) do
+		table.insert(lines, availableItemLine)
+	end
+
 	table.insert(lines, '</Character>')
 
 	return table.concat(lines, "\n")
