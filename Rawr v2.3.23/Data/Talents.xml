@@ -520,4 +520,12 @@
     <Tree2>5</Tree2>
     <Tree3>55</Tree3>
   </SavedTalentSpec>
+  <SavedTalentSpec>
+    <Name>demo</Name>
+    <Class>Warlock</Class>
+    <Spec>000000000000000000000000000000320330113520253013520135155000005200000000000000000.00000100001100000</Spec>
+    <Tree1>0</Tree1>
+    <Tree2>54</Tree2>
+    <Tree3>17</Tree3>
+  </SavedTalentSpec>
 </ArrayOfSavedTalentSpec>
